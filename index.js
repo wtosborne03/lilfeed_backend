@@ -87,13 +87,27 @@ sequelize.sync()
 // Initialize Express
 const app = express();
 
-app.use(function (req, res, next) {
-    res.header("Access-Control-Allow-Origin", "http://localhost:5173");
+const setCorsHeaders = (req, res, next) => {
+  // List of allowed origins
+  const allowedOrigins = ['https://test.locktext.xyz', 'https://lil-feed.com'];
+
+  // Get the origin from the request headers
+  const origin = req.headers.origin;
+
+  // Check if the origin is in the list of allowed origins
+  if (allowedOrigins.includes(origin)) {
+    // Set the CORS headers to allow the request
+    res.header('Access-Control-Allow-Origin', origin);
     res.header("Access-Control-Allow-Methods", "GET, PUT, POST");
     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
     res.header('Access-Control-Allow-Credentials', 'true');
-    next();
-});
+  }
+
+  next();
+};
+
+// Use the CORS middleware for all routes
+app.use(setCorsHeaders);
 
 // Middleware
 app.use(express.json());
@@ -189,7 +203,7 @@ app.get('/login', (req, res) => { res.send('lgoin page'); });
 app.post('/logout', (req, res) => {
     req.logout(function (err) {
         if (err) { return next(err); }
-        res.redirect('/');
+        res.status(200).send('logged out');
     });
 });
 // Routes
@@ -238,7 +252,9 @@ app.get('/user/:number', (req, res) => {
             );
     } else {
 
-        User.findOne({ where: { number: req.params['number'] } })
+        User.findOne({
+ include: [{ model: Post, as: 'Posts' }],
+ where: { number: req.params['number'] } })
             .then(user => {
                 if (!user) {
                     //number doesnt exist
@@ -295,7 +311,7 @@ app.get('/protected', (req, res) => {
 });
 
 // Start the server
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 2600;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
