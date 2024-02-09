@@ -1,6 +1,8 @@
-Backend for lil-Feed
+# lil-Feed Backend
+Using:
+- Express
+- Passport.Js
+- Sequelize w/ Sqlite
+- Vonage api for sms
 
--Express
--Passport.js
--Sequelize with spatialite
--Vonage for sms auth
+to run: node index.js
