@@ -6,6 +6,7 @@ const bcrypt = require('bcryptjs');
 const Sequelize = require('sequelize');
 const { Vonage } = require('@vonage/server-sdk');
 const cors = require('cors');
+const Op = Sequelize.Op;
 
 // Set up Sequelize
 const sequelize = new Sequelize({
@@ -30,6 +31,10 @@ const User = sequelize.define('User', {
     name: {
         type: Sequelize.STRING,
         allowNull: true
+    },
+    setup: {
+        type: Sequelize.BOOLEAN,
+        default: false,
     },
     bio: {
         type: Sequelize.TEXT,
@@ -75,6 +80,24 @@ Image.belongsTo(User);
 User.hasMany(Post);
 Post.belongsTo(User);
 
+//check for stale rows every minute.
+cron.schedule('* * * * *', function () {
+    User.destroy({
+        where: {
+            setup: false,
+            createdAt: {
+                [Op.lt]: new Date(new Date() - 10 * 60 * 1000) //created more than 10 minutes ago.
+            }
+        }
+    })
+        .then(numDeleted => {
+            //console.log(`Deleted ${numDeleted} rows`);
+        })
+        .catch(err => {
+            console.error('Error deleting rows:', err);
+        });
+});
+
 // Sync the model with the database
 sequelize.sync()
     .then(() => {
@@ -88,22 +111,22 @@ sequelize.sync()
 const app = express();
 
 const setCorsHeaders = (req, res, next) => {
-  // List of allowed origins
-  const allowedOrigins = ['https://test.locktext.xyz', 'https://lil-feed.com'];
+    // List of allowed origins
+    const allowedOrigins = ['https://test.locktext.xyz', 'https://lil-feed.com'];
 
-  // Get the origin from the request headers
-  const origin = req.headers.origin;
+    // Get the origin from the request headers
+    const origin = req.headers.origin;
 
-  // Check if the origin is in the list of allowed origins
-  if (allowedOrigins.includes(origin)) {
-    // Set the CORS headers to allow the request
-    res.header('Access-Control-Allow-Origin', origin);
-    res.header("Access-Control-Allow-Methods", "GET, PUT, POST");
-    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    res.header('Access-Control-Allow-Credentials', 'true');
-  }
+    // Check if the origin is in the list of allowed origins
+    if (allowedOrigins.includes(origin)) {
+        // Set the CORS headers to allow the request
+        res.header('Access-Control-Allow-Origin', origin);
+        res.header("Access-Control-Allow-Methods", "GET, PUT, POST");
+        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+        res.header('Access-Control-Allow-Credentials', 'true');
+    }
 
-  next();
+    next();
 };
 
 // Use the CORS middleware for all routes
@@ -134,11 +157,13 @@ passport.use(new LocalStrategy(
                 const req_id = user.req_id;
 
                 vonage.verify.check(req_id, password)
-                    .then(resp => {
+                    .then(async (resp) => {
                         console.log(resp);
                         if (resp.status == '0') {
                             console.log(user);
                             console.log('success');
+                            //log user as setup
+                            await user.update({ setup: true });
                             return done(null, user);
                         } else {
                             return done(null, false, { message: 'Invalid Verification Code.' });
@@ -253,8 +278,9 @@ app.get('/user/:number', (req, res) => {
     } else {
 
         User.findOne({
- include: [{ model: Post, as: 'Posts' }],
- where: { number: req.params['number'] } })
+            include: [{ model: Post, as: 'Posts' }],
+            where: { number: req.params['number'] }
+        })
             .then(user => {
                 if (!user) {
                     //number doesnt exist
