@@ -84,8 +84,6 @@ const setCorsHeaders = (req, res, next) => {
 
     // Get the origin from the request headers
     const origin = req.headers.origin;
-    // Get the origin from the request headers
-    const origin = req.headers.origin;
 
     // Check if the origin is in the list of allowed origins
     if (allowedOrigins.includes(origin)) {
@@ -247,9 +245,7 @@ app.get('/user/:number', (req, res) => {
             include: [{ model: Post, as: 'Posts' }],
             where: { number: req.params['number'] }
         })
-        include: [{ model: Post, as: 'Posts' }],
-            where: { number: req.params['number'] }
-    })
+
     .then(user => {
         if (!user) {
             //number doesnt exist
