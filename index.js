@@ -48,6 +48,24 @@ cron.schedule('* * * * *', function () {
         });
 });
 
+//check for stale rows every minute.
+cron.schedule('* * * * *', function () {
+    User.destroy({
+        where: {
+            setup: false,
+            createdAt: {
+                [Op.lt]: new Date(new Date() - 10 * 60 * 1000) //created more than 10 minutes ago.
+            }
+        }
+    })
+        .then(numDeleted => {
+            //console.log(`Deleted ${numDeleted} rows`);
+        })
+        .catch(err => {
+            console.error('Error deleting rows:', err);
+        });
+});
+
 // Sync the model with the database
 sequelize.sync()
     .then(() => {
@@ -66,6 +84,8 @@ const setCorsHeaders = (req, res, next) => {
 
     // Get the origin from the request headers
     const origin = req.headers.origin;
+    // Get the origin from the request headers
+    const origin = req.headers.origin;
 
     // Check if the origin is in the list of allowed origins
     if (allowedOrigins.includes(origin)) {
@@ -76,6 +96,7 @@ const setCorsHeaders = (req, res, next) => {
         res.header('Access-Control-Allow-Credentials', config.corsOptions.credentials);
     }
 
+    next();
     next();
 };
 
@@ -226,17 +247,20 @@ app.get('/user/:number', (req, res) => {
             include: [{ model: Post, as: 'Posts' }],
             where: { number: req.params['number'] }
         })
-            .then(user => {
-                if (!user) {
-                    //number doesnt exist
-                    res.status(404).send('Not Found');
-                } else {
-                    //send other person's page
-                    res.status(200).send({ 'user': user, 'self': false });
+        include: [{ model: Post, as: 'Posts' }],
+            where: { number: req.params['number'] }
+    })
+    .then(user => {
+        if (!user) {
+            //number doesnt exist
+            res.status(404).send('Not Found');
+        } else {
+            //send other person's page
+            res.status(200).send({ 'user': user, 'self': false });
 
-                }
-            }
-            );
+        }
+    }
+    );
     }
 });
 
